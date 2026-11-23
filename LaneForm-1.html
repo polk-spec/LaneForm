@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>LANEFORM</title>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+<style>
+  :root { --bg:#0a0a0a; --card:#1a1a1a; --text:#f5f5f5; --muted:#a0a0a0; --accent:#e8a317; }
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; }
+  body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--text); height:100dvh; overflow:hidden; display:flex; flex-direction:column; }
+  .screen { flex:1; overflow-y:auto; padding:16px 16px 90px; }
+  .hidden { display:none !important; }
+  .logo { text-align:center; letter-spacing:4px; font-size:1.4rem; margin:8px 0 20px; font-weight:500; }
+  .bowler-row { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+  .bowler-pill { background:var(--accent); color:#000; padding:10px 20px; border-radius:999px; font-weight:600; border:none; }
+  .add-btn { width:44px; height:44px; border-radius:50%; border:1px solid #555; background:transparent; color:var(--text); font-size:1.2rem; }
+  .meta { color:var(--muted); font-size:0.9rem; margin-bottom:20px; }
+  .toggle { display:flex; background:#1a1a1a; border-radius:999px; padding:4px; margin:16px 0; }
+  .toggle button { flex:1; padding:12px; border:none; border-radius:999px; background:transparent; color:var(--text); font-weight:600; }
+  .toggle button.active { background:var(--accent); color:#000; }
+  .desc { color:var(--muted); font-size:0.9rem; margin-bottom:24px; line-height:1.4; }
+  .btn-primary { width:100%; background:var(--accent); color:#000; border:none; padding:16px; border-radius:999px; font-size:1.05rem; font-weight:600; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .btn-secondary { width:100%; background:#2a2a2a; color:var(--text); border:none; padding:16px; border-radius:999px; font-size:1.05rem; font-weight:500; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .section-title { font-size:1.25rem; margin:24px 0 12px; }
+  .how-item { padding:14px 0; border-bottom:1px solid #2a2a2a; color:var(--muted); font-size:0.95rem; line-height:1.4; }
+  .header-row { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; }
+  .score-big { font-size:2.4rem; font-weight:700; color:var(--accent); text-align:right; }
+  .score-label { color:var(--muted); font-size:0.85rem; }
+  .video-wrap { position:relative; border-radius:16px; overflow:hidden; background:#000; margin-bottom:12px; }
+  video, canvas { width:100%; display:block; }
+  canvas { position:absolute; top:0; left:0; pointer-events:none; }
+  .controls { display:flex; gap:12px; justify-content:center; margin:16px 0; flex-wrap:wrap; }
+  .ctrl-btn { width:56px; height:56px; border-radius:50%; background:#1a1a1a; border:none; color:var(--text); font-size:1.2rem; display:flex; align-items:center; justify-content:center; }
+  .speed-btn { width:auto; padding:0 14px; border-radius:999px; font-size:0.85rem; }
+  .draw-tools { display:flex; gap:8px; justify-content:center; margin:8px 0 16px; flex-wrap:wrap; }
+  .draw-btn { padding:8px 14px; border-radius:999px; background:#2a2a2a; color:var(--text); border:none; font-size:0.85rem; }
+  .marks { display:flex; gap:8px; margin:16px 0; }
+  .mark { flex:1; background:#1a1a1a; border-radius:12px; padding:10px 6px; text-align:center; font-size:0.75rem; }
+  .mark span { display:block; color:var(--accent); font-weight:600; margin-top:4px; }
+  .metric { margin:18px 0; }
+  .metric-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; }
+  .metric-name { font-size:1.1rem; font-weight:600; }
+  .metric-val { font-size:1.3rem; font-weight:700; color:var(--accent); }
+  .bar { height:6px; background:#2a2a2a; border-radius:3px; overflow:hidden; }
+  .bar-fill { height:100%; background:var(--accent); border-radius:3px; }
+  .metric-note { color:var(--muted); font-size:0.85rem; margin-top:6px; }
+  .tip-card { background:#1a1a1a; border-radius:16px; padding:16px; margin-bottom:12px; }
+  .tip-label { color:var(--accent); font-size:0.75rem; letter-spacing:1px; font-weight:600; }
+  .tip-title { font-size:1.3rem; margin:4px 0 8px; }
+  .tip-body { color:var(--muted); font-size:0.95rem; line-height:1.45; }
+  .chart-box { background:#1a1a1a; border-radius:16px; padding:16px; margin:16px 0; min-height:140px; }
+  .nav { position:fixed; bottom:0; left:0; right:0; background:#0a0a0a; border-top:1px solid #2a2a2a; display:flex; justify-content:space-around; padding:10px 0 20px; }
+  .nav-item { text-align:center; color:#666; font-size:0.75rem; }
+  .nav-item.active { color:var(--accent); }
+  .nav-icon { font-size:1.4rem; display:block; margin-bottom:2px; }
+  input[type=file] { display:none; }
+  .status { text-align:center; color:var(--muted); margin:12px 0; font-size:0.9rem; }
+  .notes-box { width:100%; background:#1a1a1a; border:1px solid #333; border-radius:12px; padding:12px; color:var(--text); margin:12px 0; min-height:70px; }
+  .book-item { background:#1a1a1a; border-radius:12px; padding:12px; margin-bottom:10px; }
+  .tag { display:inline-block; background:#333; color:var(--accent); padding:2px 8px; border-radius:999px; font-size:0.75rem; margin-right:6px; }
+  .compare-wrap { display:flex; gap:8px; }
+  .compare-wrap > div { flex:1; }
+</style>
+</head>
+<body>
+  <!-- LANE -->
+  <div id="laneScreen" class="screen">
+    <div class="logo">LANEFORM</div>
+    <div class="bowler-row">
+      <button class="bowler-pill" id="bowlerName">Oliver Polk</button>
+      <button class="add-btn" id="addBowler">+</button>
+    </div>
+    <div class="meta" id="bowlerMeta">Two hand, 14 pounds</div>
+    <div class="toggle">
+      <button class="active" id="sideBtn">Side</button>
+      <button id="behindBtn">Behind</button>
+    </div>
+    <div class="desc" id="viewDesc">Side reads tempo, the burst, the path to the line, and the finish.</div>
+    <button class="btn-primary" id="recordBtn">📹 Record a delivery</button>
+    <button class="btn-secondary" id="importBtn">↑ Import a clip</button>
+    <input type="file" id="fileInput" accept="video/*">
+    <div class="status" id="laneStatus"></div>
+    <div class="section-title">How to film (high-FPS tips)</div>
+    <div class="how-item">Phone still. One bowler, shoes to the crown. Use 60–120+ fps if available for cleaner slow-mo.</div>
+    <div class="how-item">Side view for the swing. Behind for drift off the line. Good light reduces blur.</div>
+    <div class="how-item">Hold a beat before the first step and after the finish. Manual shutter (if available) freezes motion.</div>
+  </div>
+
+  <!-- READ -->
+  <div id="readScreen" class="screen hidden">
+    <div class="header-row">
+      <div>
+        <div style="color:var(--muted); font-size:0.85rem;">OLIVER POLK · SIDE</div>
+        <div style="font-size:1.6rem; font-weight:700;" id="clipId">—</div>
+      </div>
+      <div>
+        <div class="score-big" id="overallScore">—</div>
+        <div class="score-label">Watch</div>
+      </div>
+    </div>
+    <div class="video-wrap">
+      <video id="player" playsinline></video>
+      <canvas id="overlay"></canvas>
+    </div>
+    <div class="controls">
+      <button class="ctrl-btn" id="stepBack">◀</button>
+      <button class="ctrl-btn" id="playBtn">▶</button>
+      <button class="ctrl-btn" id="stepFwd">▶</button>
+      <button class="ctrl-btn speed-btn" id="speedBtn">1×</button>
+      <button class="ctrl-btn speed-btn" id="skeletonBtn">Skeleton</button>
+    </div>
+    <div class="draw-tools">
+      <button class="draw-btn" id="drawLine">Line</button>
+      <button class="draw-btn" id="drawAngle">Angle</button>
+      <button class="draw-btn" id="drawClear">Clear</button>
+      <button class="draw-btn" id="compareBtn">Compare</button>
+    </div>
+    <div id="compareArea" class="hidden">
+      <div class="compare-wrap">
+        <div><video id="playerA" playsinline style="width:100%; border-radius:12px;"></video></div>
+        <div><video id="playerB" playsinline style="width:100%; border-radius:12px;"></video></div>
+      </div>
+      <button class="btn-secondary" id="loadCompare">Load second clip</button>
+      <input type="file" id="compareInput" accept="video/*">
+    </div>
+    <textarea class="notes-box" id="notes" placeholder="Notes / voice-over style feedback for this delivery..."></textarea>
+    <button class="btn-secondary" id="saveNotes">Save notes & tags</button>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+      <div class="section-title" style="margin:0;">Marks</div>
+      <div style="color:var(--muted); font-size:0.85rem;">Guessed</div>
+    </div>
+    <div class="marks">
+      <div class="mark">STANCE<span>0.08s</span></div>
+      <div class="mark">PLANT<span>2.10s</span></div>
+      <div class="mark">RELEASE<span>2.85s</span></div>
+      <div class="mark">FINISH<span>5.70s</span></div>
+    </div>
+    <div class="metric"><div class="metric-header"><div class="metric-name">Tempo</div><div class="metric-val">55</div></div><div class="bar"><div class="bar-fill" style="width:55%"></div></div><div class="metric-note">2.67s — the approach stalls.</div></div>
+    <div class="metric"><div class="metric-header"><div class="metric-name">Burst</div><div class="metric-val">90</div></div><div class="bar"><div class="bar-fill" style="width:90%"></div></div><div class="metric-note">A sharp release against a quieter approach.</div></div>
+    <div class="metric"><div class="metric-header"><div class="metric-name">Path</div><div class="metric-val">64</div></div><div class="bar"><div class="bar-fill" style="width:64%"></div></div><div class="metric-note">Rocks instead of traveling one way.</div></div>
+    <div class="metric"><div class="metric-header"><div class="metric-name">Eyes</div><div class="metric-val">90</div></div><div class="bar"><div class="bar-fill" style="width:90%"></div></div><div class="metric-note">Quiet head, consistent window.</div></div>
+    <div class="chart-box">
+      <div style="color:var(--muted); font-size:0.85rem; margin-bottom:8px;">Your release mark sits on the motion burst.</div>
+      <svg width="100%" height="100" viewBox="0 0 300 100"><polyline points="10,70 40,55 55,60 70,30 85,45 100,50 120,75 140,80 160,40 180,35 200,70 220,65 240,75 260,60 280,55" fill="none" stroke="#e8a317" stroke-width="2"/><polyline points="10,65 40,62 70,60 100,58 130,62 160,55 190,60 220,58 250,62 280,55" fill="none" stroke="#888" stroke-width="1" stroke-dasharray="4"/><line x1="70" y1="20" x2="70" y2="90" stroke="#e8a317" stroke-width="1" stroke-dasharray="2"/></svg>
+    </div>
+    <div class="tip-card"><div class="tip-label">KEEP</div><div class="tip-title">Eyes</div><div class="tip-body">The head is not arguing with the torso. A quiet head gives the ball the same window every shot.</div></div>
+    <div class="tip-card"><div class="tip-label">WATCH</div><div class="tip-title">Shoulders</div><div class="tip-body">The shoulders rock. Square them to the foul line and leave them there.</div></div>
+    <div class="tip-card"><div class="tip-label">WATCH</div><div class="tip-title">Finish</div><div class="tip-body">Everything stops when the ball leaves. The hand should keep climbing past the shoulder, then freeze.</div></div>
+  </div>
+
+  <!-- BOOK -->
+  <div id="bookScreen" class="screen hidden">
+    <div class="logo">BOOK</div>
+    <div id="historyList">No saved deliveries yet.</div>
+  </div>
+
+  <nav class="nav">
+    <div class="nav-item active" data-screen="laneScreen"><span class="nav-icon">◎</span>Lane</div>
+    <div class="nav-item" data-screen="readScreen"><span class="nav-icon">📈</span>Read</div>
+    <div class="nav-item" data-screen="bookScreen"><span class="nav-icon">☰</span>Book</div>
+  </nav>
+
+<script>
+const $ = id => document.getElementById(id);
+const screens = { laneScreen:$('laneScreen'), readScreen:$('readScreen'), bookScreen:$('bookScreen') };
+document.querySelectorAll('.nav-item').forEach(item => item.onclick = () => showScreen(item.dataset.screen));
+function showScreen(id) {
+  Object.values(screens).forEach(s => s.classList.add('hidden'));
+  screens[id].classList.remove('hidden');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.screen === id));
+  if (id === 'bookScreen') renderBook();
+}
+
+// Side / Behind
+$('sideBtn').onclick = () => { $('sideBtn').classList.add('active'); $('behindBtn').classList.remove('active'); $('viewDesc').textContent = 'Side reads tempo, the burst, the path to the line, and the finish.'; };
+$('behindBtn').onclick = () => { $('behindBtn').classList.add('active'); $('sideBtn').classList.remove('active'); $('viewDesc').textContent = 'Behind reads drift off the line and balance through the finish.'; };
+
+// Video
+const player = $('player');
+const overlay = $('overlay');
+const ctx = overlay.getContext('2d');
+let pose, skeletonOn = false, lastVideoTime = -1;
+
+async function initPose() {
+  pose = new Pose({locateFile: f => `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${f}`});
+  pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+  pose.onResults(onResults);
+}
+function onResults(results) {
+  ctx.save();
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  if (results.poseLandmarks) {
+    drawConnectors(ctx, results.poseLandmarks, POSE_CONNECTIONS, {color: '#e8a317', lineWidth: 3});
+    drawLandmarks(ctx, results.poseLandmarks, {color: '#fff', lineWidth: 1, radius: 3});
+  }
+  ctx.restore();
+}
+function processVideo() {
+  if (!skeletonOn || player.paused || player.ended) return;
+  if (player.currentTime !== lastVideoTime) {
+    lastVideoTime = player.currentTime;
+    pose.send({image: player});
+  }
+  requestAnimationFrame(processVideo);
+}
+$('skeletonBtn').onclick = async () => {
+  if (!pose) await initPose();
+  skeletonOn = !skeletonOn;
+  $('skeletonBtn').textContent = skeletonOn ? 'Skel ON' : 'Skeleton';
+  if (skeletonOn) processVideo();
+  else ctx.clearRect(0, 0, overlay.width, overlay.height);
+};
+player.onloadedmetadata = () => { overlay.width = player.videoWidth || player.clientWidth; overlay.height = player.videoHeight || player.clientHeight; };
+
+// Recording / Import
+let mediaRecorder, recordedChunks = [], currentStream;
+async function startRecording() {
+  try {
+    currentStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } }, audio: false });
+    mediaRecorder = new MediaRecorder(currentStream, { mimeType: 'video/webm;codecs=vp9' });
+    recordedChunks = [];
+    mediaRecorder.ondataavailable = e => { if (e.data.size) recordedChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const url = URL.createObjectURL(blob);
+      player.src = url;
+      currentStream.getTracks().forEach(t => t.stop());
+      $('clipId').textContent = Date.now().toString().slice(-8);
+      $('overallScore').textContent = Math.floor(65 + Math.random()*20);
+      showScreen('readScreen');
+      saveEntry(url);
+    };
+    mediaRecorder.start();
+    $('laneStatus').textContent = 'Recording… (tap again to stop)';
+    $('recordBtn').textContent = '⏹ Stop';
+    $('recordBtn').onclick = stopRecording;
+  } catch (err) { $('laneStatus').textContent = 'Camera: ' + err.message; }
+}
+function stopRecording() { if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); $('recordBtn').textContent = '📹 Record a delivery'; $('recordBtn').onclick = startRecording; }
+$('recordBtn').onclick = startRecording;
+$('importBtn').onclick = () => $('fileInput').click();
+$('fileInput').onchange = e => {
+  const file = e.target.files[0]; if (!file) return;
+  const url = URL.createObjectURL(file);
+  player.src = url;
+  $('clipId').textContent = Date.now().toString().slice(-8);
+  $('overallScore').textContent = Math.floor(65 + Math.random()*20);
+  showScreen('readScreen');
+  saveEntry(url);
+};
+
+// Playback
+const speeds = [0.25, 0.5, 1, 1.5]; let speedIdx = 2;
+$('speedBtn').onclick = () => { speedIdx = (speedIdx + 1) % speeds.length; player.playbackRate = speeds[speedIdx]; $('speedBtn').textContent = speeds[speedIdx] + '×'; };
+$('stepBack').onclick = () => { player.pause(); player.currentTime = Math.max(0, player.currentTime - 1/30); };
+$('stepFwd').onclick = () => { player.pause(); player.currentTime = Math.min(player.duration || 999, player.currentTime + 1/30); };
+$('playBtn').onclick = () => { if (player.paused) { player.play(); if (skeletonOn) processVideo(); } else player.pause(); };
+
+// Drawing
+let drawing = false, drawMode = null, startX, startY;
+function getPos(e) { const r = overlay.getBoundingClientRect(); const t = e.touches ? e.touches[0] : e; return { x: (t.clientX - r.left) * (overlay.width / r.width), y: (t.clientY - r.top) * (overlay.height / r.height) }; }
+$('drawLine').onclick = () => { drawMode = 'line'; overlay.style.pointerEvents = 'auto'; };
+$('drawAngle').onclick = () => { drawMode = 'angle'; overlay.style.pointerEvents = 'auto'; };
+$('drawClear').onclick = () => { ctx.clearRect(0, 0, overlay.width, overlay.height); overlay.style.pointerEvents = 'none'; drawMode = null; };
+overlay.onpointerdown = e => { if (!drawMode) return; drawing = true; const p = getPos(e); startX = p.x; startY = p.y; };
+overlay.onpointermove = e => { if (!drawing || !drawMode) return; const p = getPos(e); ctx.clearRect(0, 0, overlay.width, overlay.height); ctx.strokeStyle = '#e8a317'; ctx.lineWidth = 3; ctx.beginPath(); if (drawMode === 'line') { ctx.moveTo(startX, startY); ctx.lineTo(p.x, p.y); } else { ctx.moveTo(startX, startY); ctx.lineTo(p.x, p.y); ctx.moveTo(startX, startY); ctx.lineTo(startX + 80, startY); } ctx.stroke(); };
+overlay.onpointerup = () => drawing = false;
+
+// Compare
+$('compareBtn').onclick = () => $('compareArea').classList.toggle('hidden');
+$('loadCompare').onclick = () => $('compareInput').click();
+$('compareInput').onchange = e => { if (e.target.files[0]) $('playerB').src = URL.createObjectURL(e.target.files[0]); };
+
+// Book / Notes
+function saveEntry(url) {
+  const entries = JSON.parse(localStorage.getItem('laneEntries') || '[]');
+  entries.unshift({ id: Date.now(), url, notes: '', tags: [], date: new Date().toLocaleString(), score: $('overallScore').textContent });
+  localStorage.setItem('laneEntries', JSON.stringify(entries.slice(0, 50)));
+  renderBook();
+}
+function renderBook() {
+  const entries = JSON.parse(localStorage.getItem('laneEntries') || '[]');
+  $('historyList').innerHTML = entries.length ? entries.map(e => `
+    <div class="book-item">
+      <strong>${e.date}</strong> · Score ${e.score}<br>
+      ${(e.tags||[]).map(t => `<span class="tag">${t}</span>`).join('')}
+      <div style="color:var(--muted); margin-top:6px; font-size:0.9rem;">${e.notes || 'No notes'}</div>
+    </div>`).join('') : 'No saved deliveries yet.';
+}
+$('saveNotes').onclick = () => {
+  const entries = JSON.parse(localStorage.getItem('laneEntries') || '[]');
+  if (entries[0]) { entries[0].notes = $('notes').value; entries[0].tags = $('notes').value.split(',').map(t => t.trim()).filter(Boolean); localStorage.setItem('laneEntries', JSON.stringify(entries)); alert('Saved'); }
+};
+
+showScreen('laneScreen');
+</script>
+</body>
+</html>
